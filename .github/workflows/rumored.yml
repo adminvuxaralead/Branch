@@ -1,0 +1,92 @@
+#Region IE_EVENT_FUNCS
+
+; For right-click, the context menu pops up, UNLESS we change the Event's 'returnValue' property
+Volatile Func Event_oncontextmenu($oEvtObj)
+    If IsObj($oEvtObj) Then
+        ; Convert to string so that 0 doesn't match EVERY string
+        Local $sId = $oEvtObj.srcElement.id & ""
+        If ($sId = "myCanvas") Then $oEvtObj.returnValue = False
+    EndIf
+EndFunc
+
+Volatile Func Event_onmousedown($oEvtObj)
+    If IsObj($oEvtObj) And IsObj($g_oCtx) Then
+        ; Map click coordinates to Canvas coordinates
+        $iLastX1 = $oEvtObj.x - $g_oCanvas.offsetLeft
+        $iLastY1 = $oEvtObj.y - $g_oCanvas.offsetTop
+;~         ConsoleWrite("Downclick recvd at X1: " & $iLastX1 & ", Y1: " & $iLastY1 & ", MouseButton [1 = left, 2 = right, etc] = " & $oEvtObj.button & @CRLF)
+
+        ; Check if click was in fact within Canvas element
+        If $iLastX1 >= 0 And $iLastX1 < $g_oCanvas.width And $iLastY1 >= 0 And $iLastY1 < $g_oCanvas.height Then
+            ; Signal mouse-down occurred inside Canvas
+            $bMouseDown = 1
+            ; Make a small square where initial down-click was detected
+            $g_oCtx.fillStyle = "blue"
+            $g_oCtx.fillRect($iLastX1 - 2, $iLastY1 - 2, 3, 3)
+        EndIf
+    EndIf
+EndFunc
+
+Volatile Func Event_onmouseup($oEvtObj)
+    If IsObj($oEvtObj) And IsObj($g_oCtx) Then
+;~         ConsoleWrite("MouseUp" & @LF)
+        If $bMouseDown Then
+            Local $iX = $oEvtObj.x - $g_oCanvas.offsetLeft, $iY = $oEvtObj.y - $g_oCanvas.offsetTop
+
+            ; Random color in "#0f1100" (RGB) string form
+            Local $sColor = "#" & Hex(Random(0, 255, 1), 2) & Hex(Random(0, 255, 1), 2) & Hex(Random(0, 255, 1), 2)
+
+            ;; Draw either a line or circle depending on where the mouse button is released
+            If $iX = $iLastX1 And $iY = $iLastY1 Then
+                ; Circle if mouse start = mouse end
+                $g_oCtx.beginPath()
+                $g_oCtx.arc($iX, $iY, 8, 0, ACos(-1) * 2)
+                $g_oCtx.fillStyle = $sColor
+                $g_oCtx.fill()
+            Else
+                ; Line if mouse start <> mouse end
+                $g_oCtx.beginPath()
+                $g_oCtx.lineWidth = "3"
+                $g_oCtx.strokeStyle = $sColor
+                $g_oCtx.moveTo($iLastX1, $iLastY1)
+                $g_oCtx.lineTo($iX, $iY)
+                $g_oCtx.stroke()
+            EndIf
+            $bMouseDown = 0
+        EndIf
+    EndIf
+EndFunc
+
+Volatile Func Event_onkeydown($oEvtObj)
+    If IsObj($oEvtObj) Then
+        ConsoleWrite("Event type: " & $oEvtObj.type & "id (0 is document) = " & $oEvtObj.srcElement.id)
+        ConsoleWrite(", keycode = " & $oEvtObj.keyCode & ", shiftkey = " & $oEvtObj.shiftKey & @CRLF)
+    EndIf
+EndFunc
+; ======================================================================================================
+#EndRegion IE_EVENT_FUNCS
+
+#EndRegion IE_CANVAS_EXAMPLE
+
+#Region UTIL_FUNCS
+; ======================================================================================================
+; Func _ReRunIfNotElevated()
+;
+; Does what it says. (rumored to occasionally say what it does)
+;
+; Author: Ascend4nt
+; ======================================================================================================
+Func _ReRunIfNotElevated()
+    If IsAdmin() Then
+        Return 0
+    Else
+        If @Compiled Then
+            ; If compiled to A3X, we need to execute it as if not compiled.
+            Local $sCmd = (@AutoItExe = @ScriptFullPath) ? "" : ("/AutoIt3ExecuteScript " & @ScriptFullPath)
+            Return ShellExecute(@AutoItExe, $sCmd, @ScriptDir, "runas")
+        Else
+            Return ShellExecute(@AutoItExe,@ScriptFullPath,@ScriptDir,"runas")
+        EndIf
+    EndIf
+EndFunc
+#EndRegion UTIL_FUNCS
